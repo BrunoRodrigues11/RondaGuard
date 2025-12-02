@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { LayoutDashboard, PlusCircle, History as HistoryIcon, ShieldCheck, LogOut, ListChecks, Sun, Moon } from 'lucide-react';
 import { Task, RoundLog, AppView, ChecklistTemplate, User, UserRole } from './types';
@@ -9,7 +8,7 @@ import History from './components/History';
 import TemplateManager from './components/TemplateManager';
 import Login from './components/Login';
 
-// Default templates
+// Default templates moved from TaskCreator to App level for initialization
 const DEFAULT_TEMPLATES: ChecklistTemplate[] = [
   {
     id: "tpl_1",
@@ -80,13 +79,13 @@ const loadTemplates = (): ChecklistTemplate[] => {
 };
 
 const App: React.FC = () => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  // Auth State
+  const [user, setUser] = useState<User | null>(null);
+
   const [currentView, setCurrentView] = useState<AppView>(AppView.DASHBOARD);
-  
   const [tasks, setTasks] = useState<Task[]>([]);
   const [logs, setLogs] = useState<RoundLog[]>([]);
   const [templates, setTemplates] = useState<ChecklistTemplate[]>([]);
-  
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [taskToEdit, setTaskToEdit] = useState<Task | null>(null);
   
@@ -104,6 +103,12 @@ const App: React.FC = () => {
     setTasks(loadTasks());
     setLogs(loadHistory());
     setTemplates(loadTemplates());
+    
+    // Check for logged user in session (optional persistence)
+    const savedUser = sessionStorage.getItem('ronda_user');
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+    }
   }, []);
 
   // Persistence
@@ -133,16 +138,19 @@ const App: React.FC = () => {
   const toggleTheme = () => setDarkMode(!darkMode);
 
   // Auth Handlers
-  const handleLogin = (user: User) => {
-    setCurrentUser(user);
+  const handleLogin = (loggedInUser: User) => {
+    setUser(loggedInUser);
+    sessionStorage.setItem('ronda_user', JSON.stringify(loggedInUser));
     setCurrentView(AppView.DASHBOARD);
   };
 
   const handleLogout = () => {
-    setCurrentUser(null);
+    setUser(null);
+    sessionStorage.removeItem('ronda_user');
+    setCurrentView(AppView.DASHBOARD);
   };
 
-  // Task Handlers
+  // Handlers
   const handleSaveTask = (task: Task) => {
     setTasks(prev => {
         const exists = prev.some(t => t.id === task.id);
@@ -164,7 +172,7 @@ const App: React.FC = () => {
   const handleDuplicateTask = (task: Task) => {
     const taskCopy: Task = {
         ...task,
-        id: '', 
+        id: '', // Empty ID tells TaskCreator this is a new entry
         title: `${task.title} (Cópia)`,
         createdAt: Date.now()
     };
@@ -184,12 +192,11 @@ const App: React.FC = () => {
   const handleFinishRound = (log: RoundLog) => {
     setLogs(prev => [log, ...prev]);
     setActiveTask(null);
-    // If Supervisor, go to History. If Technician, back to Dashboard.
-    if (currentUser?.role === UserRole.SUPERVISOR) {
-        setCurrentView(AppView.HISTORY);
-    } else {
-        setCurrentView(AppView.DASHBOARD);
-    }
+    setCurrentView(AppView.HISTORY); // Or Dashboard if technician? Let's go to History for now so they see it's done.
+  };
+  
+  const handleUpdateLog = (updatedLog: RoundLog) => {
+      setLogs(prev => prev.map(l => l.id === updatedLog.id ? updatedLog : l));
   };
 
   const handleCancelCreate = () => {
@@ -220,21 +227,36 @@ const App: React.FC = () => {
 
   // --- Render Helpers ---
 
-  // Check permissions for Views
-  const canAccessHistory = currentUser?.role === UserRole.SUPERVISOR;
-  const canAccessTemplates = currentUser?.role === UserRole.ANALYST;
-  const canCreateTasks = currentUser?.role === UserRole.ANALYST;
+  // If not logged in, show login screen
+  if (!user) {
+    return (
+        <div className="font-sans">
+            <div className="fixed top-4 right-4 z-50">
+                 <button 
+                    onClick={toggleTheme}
+                    className="p-2 bg-white dark:bg-slate-800 text-slate-500 rounded-full shadow-md"
+                >
+                    {darkMode ? <Sun size={20} /> : <Moon size={20} />}
+                </button>
+            </div>
+            <Login onLogin={handleLogin} />
+        </div>
+    );
+  }
+
+  // Permission Logic
+  const canCreate = user.role === UserRole.ANALYST || user.role === UserRole.SUPERVISOR;
+  const canViewHistory = user.role === UserRole.SUPERVISOR; // As per prompt requirement
+  const canManageTemplates = user.role === UserRole.ANALYST || user.role === UserRole.SUPERVISOR;
 
   const renderContent = () => {
-    if (!currentUser) return null;
-
     switch(currentView) {
       case AppView.DASHBOARD:
         return (
           <Dashboard 
             tasks={tasks} 
             history={logs} 
-            currentUser={currentUser}
+            currentUser={user}
             onNavigate={setCurrentView}
             onStartTask={handleStartTask}
             onEditTask={handleEditTask}
@@ -243,60 +265,45 @@ const App: React.FC = () => {
           />
         );
       case AppView.CREATE_TASK:
-        return canCreateTasks ? (
+        if (!canCreate) return <div className="p-8 text-center text-red-500">Acesso Negado</div>;
+        return (
           <TaskCreator 
             onSave={handleSaveTask} 
             onCancel={handleCancelCreate} 
             initialTask={taskToEdit}
             templates={templates}
           />
-        ) : <div>Acesso Negado</div>;
+        );
       case AppView.EXECUTE_ROUND:
         return activeTask ? (
             <ActiveRound 
                 task={activeTask} 
-                user={currentUser}
+                currentUser={user}
                 onFinish={handleFinishRound} 
                 onCancel={() => { setActiveTask(null); setCurrentView(AppView.DASHBOARD); }} 
             />
         ) : <div>Erro: Nenhuma tarefa selecionada</div>;
       case AppView.HISTORY:
-        return canAccessHistory ? (
-            <History logs={logs} />
-        ) : <div>Acesso restrito a Supervisores.</div>;
+        if (!canViewHistory) return <div className="p-8 text-center text-red-500">Acesso Negado: Apenas supervisores podem acessar o histórico.</div>;
+        return <History logs={logs} onUpdateLog={handleUpdateLog} />;
       case AppView.TEMPLATES:
-        return canAccessTemplates ? (
+        if (!canManageTemplates) return <div className="p-8 text-center text-red-500">Acesso Negado</div>;
+        return (
           <TemplateManager 
             templates={templates} 
             onSave={handleSaveTemplate}
             onDelete={handleDeleteTemplate}
             onCancel={() => setCurrentView(AppView.DASHBOARD)}
           />
-        ) : <div>Acesso restrito a Analistas.</div>;
+        );
       default:
         return <div>View not found</div>;
     }
   };
 
-  if (!currentUser) {
-    return (
-        <div className="font-sans">
-             <div className="absolute top-4 right-4 z-50">
-                <button 
-                    onClick={toggleTheme}
-                    className="p-2 bg-white dark:bg-slate-800 text-slate-500 rounded-full shadow-sm hover:text-blue-500"
-                >
-                    {darkMode ? <Sun size={20} /> : <Moon size={20} />}
-                </button>
-             </div>
-            <Login onLogin={handleLogin} />
-        </div>
-    );
-  }
-
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden font-sans transition-colors duration-300">
-      {/* Sidebar - Permissions Based */}
+      {/* Sidebar - Simplified */}
       <aside className="w-20 md:w-64 bg-slate-900 dark:bg-slate-900 border-r border-slate-800 flex-shrink-0 flex flex-col justify-between transition-all duration-300">
         <div>
           <div className="h-16 flex items-center justify-center md:justify-start md:px-6 border-b border-slate-800">
@@ -304,7 +311,23 @@ const App: React.FC = () => {
              <span className="hidden md:block ml-3 font-bold text-white text-lg tracking-tight">RondaGuard</span>
           </div>
 
-          <nav className="mt-8 flex flex-col gap-2 px-2 md:px-4">
+          <div className="px-4 py-4 md:hidden text-center border-b border-slate-800 mb-2">
+             <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-white mx-auto font-bold text-xs">
+                {user.role.charAt(0)}
+             </div>
+          </div>
+          
+          <div className="hidden md:flex px-6 py-4 items-center gap-3 border-b border-slate-800 mb-2">
+             <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-white font-bold">
+                {user.name.charAt(0)}
+             </div>
+             <div className="overflow-hidden">
+                <p className="text-sm font-medium text-white truncate">{user.name}</p>
+                <p className="text-xs text-slate-400 capitalize truncate">{user.role.toLowerCase()}</p>
+             </div>
+          </div>
+
+          <nav className="mt-4 flex flex-col gap-2 px-2 md:px-4">
             <button 
               onClick={() => setCurrentView(AppView.DASHBOARD)}
               className={`flex items-center p-3 rounded-lg transition-colors ${currentView === AppView.DASHBOARD ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
@@ -313,7 +336,7 @@ const App: React.FC = () => {
               <span className="hidden md:block ml-3 font-medium">Dashboard</span>
             </button>
 
-            {canCreateTasks && (
+            {canCreate && (
                 <button 
                 onClick={handleCreateNewClick}
                 className={`flex items-center p-3 rounded-lg transition-colors ${currentView === AppView.CREATE_TASK ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
@@ -323,7 +346,7 @@ const App: React.FC = () => {
                 </button>
             )}
 
-            {canAccessHistory && (
+            {canViewHistory && (
                 <button 
                 onClick={() => setCurrentView(AppView.HISTORY)}
                 className={`flex items-center p-3 rounded-lg transition-colors ${currentView === AppView.HISTORY ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
@@ -333,7 +356,7 @@ const App: React.FC = () => {
                 </button>
             )}
 
-            {canAccessTemplates && (
+            {canManageTemplates && (
                 <button 
                 onClick={() => setCurrentView(AppView.TEMPLATES)}
                 className={`flex items-center p-3 rounded-lg transition-colors ${currentView === AppView.TEMPLATES ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
@@ -346,9 +369,6 @@ const App: React.FC = () => {
         </div>
         
         <div className="p-4 space-y-2">
-            <div className="px-3 py-2 text-xs text-slate-500 uppercase font-semibold">
-                {currentUser.name}
-            </div>
           <button 
             onClick={toggleTheme}
             className="flex items-center justify-center md:justify-start w-full p-3 text-slate-400 hover:text-yellow-400 hover:bg-slate-800 rounded-lg transition"

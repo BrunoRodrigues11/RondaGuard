@@ -1,111 +1,151 @@
-
 import React, { useState } from 'react';
 import { User, UserRole } from '../types';
-import { ShieldCheck, User as UserIcon, Settings, BarChart3, ArrowRight } from 'lucide-react';
+import { ShieldCheck, User as UserIcon, Lock, ChevronRight } from 'lucide-react';
 
 interface LoginProps {
   onLogin: (user: User) => void;
 }
 
-const MOCK_USERS: User[] = [
-  { id: '1', name: 'Carlos Técnico', role: UserRole.TECHNICIAN },
-  { id: '2', name: 'Ana Analista', role: UserRole.ANALYST },
-  { id: '3', name: 'Roberto Supervisor', role: UserRole.SUPERVISOR },
-];
-
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
 
-  const handleLogin = () => {
-    if (selectedUser) {
-      onLogin(selectedUser);
+  // Mock authentication logic
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Simple mock logic for demonstration
+    if (email === 'tec@rondaguard.com' && password === '123') {
+      onLogin({ id: 'u1', name: 'Carlos Técnico', email, role: UserRole.TECHNICIAN });
+    } else if (email === 'ana@rondaguard.com' && password === '123') {
+      onLogin({ id: 'u2', name: 'Ana Analista', email, role: UserRole.ANALYST });
+    } else if (email === 'sup@rondaguard.com' && password === '123') {
+      onLogin({ id: 'u3', name: 'Roberto Supervisor', email, role: UserRole.SUPERVISOR });
+    } else {
+      setError('Credenciais inválidas. Tente usar os botões de teste abaixo.');
     }
   };
 
-  const getRoleIcon = (role: UserRole) => {
+  const loginAs = (role: UserRole) => {
     switch (role) {
-      case UserRole.TECHNICIAN: return <UserIcon size={24} className="text-blue-500" />;
-      case UserRole.ANALYST: return <Settings size={24} className="text-purple-500" />;
-      case UserRole.SUPERVISOR: return <BarChart3 size={24} className="text-emerald-500" />;
-    }
-  };
-
-  const getRoleLabel = (role: UserRole) => {
-    switch (role) {
-      case UserRole.TECHNICIAN: return 'Técnico';
-      case UserRole.ANALYST: return 'Analista';
-      case UserRole.SUPERVISOR: return 'Supervisor';
-    }
-  };
-
-  const getRoleDesc = (role: UserRole) => {
-    switch (role) {
-      case UserRole.TECHNICIAN: return 'Execução de rondas e preenchimento de checklists.';
-      case UserRole.ANALYST: return 'Gestão de tarefas, criação de checklists e processos.';
-      case UserRole.SUPERVISOR: return 'Acesso a relatórios, histórico e dashboards gerenciais.';
+      case UserRole.TECHNICIAN:
+        onLogin({ id: 'u1', name: 'Carlos Técnico', email: 'tec@rondaguard.com', role: UserRole.TECHNICIAN });
+        break;
+      case UserRole.ANALYST:
+        onLogin({ id: 'u2', name: 'Ana Analista', email: 'ana@rondaguard.com', role: UserRole.ANALYST });
+        break;
+      case UserRole.SUPERVISOR:
+        onLogin({ id: 'u3', name: 'Roberto Supervisor', email: 'sup@rondaguard.com', role: UserRole.SUPERVISOR });
+        break;
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center p-4">
-      <div className="mb-8 text-center">
-        <div className="flex items-center justify-center gap-3 mb-2">
-          <ShieldCheck className="text-blue-600 dark:text-blue-500" size={48} />
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">RondaGuard Pro</h1>
+    <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-950 px-4 transition-colors duration-300">
+      <div className="bg-white dark:bg-slate-900 w-full max-w-md p-8 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800">
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full mb-4 text-blue-600 dark:text-blue-400">
+            <ShieldCheck size={40} />
+          </div>
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-white">RondaGuard Pro</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-2">Acesso ao Sistema</p>
         </div>
-        <p className="text-slate-500 dark:text-slate-400">Sistema Inteligente de Gestão de Rondas</p>
-      </div>
 
-      <div className="bg-white dark:bg-slate-900 w-full max-w-md p-8 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-800">
-        <h2 className="text-xl font-semibold text-slate-800 dark:text-white mb-6 text-center">Selecione seu perfil de acesso</h2>
+        <form onSubmit={handleLogin} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Email</label>
+            <div className="relative">
+              <input 
+                type="email" 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
+                placeholder="seu@email.com"
+              />
+              <UserIcon className="absolute left-3 top-2.5 text-slate-400" size={18} />
+            </div>
+          </div>
 
-        <div className="space-y-3">
-          {MOCK_USERS.map((user) => (
-            <button
-              key={user.id}
-              onClick={() => setSelectedUser(user)}
-              className={`w-full p-4 rounded-xl border-2 flex items-center gap-4 transition-all text-left ${
-                selectedUser?.id === user.id 
-                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 ring-2 ring-blue-200 dark:ring-blue-900/50' 
-                  : 'border-slate-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-slate-700 bg-white dark:bg-slate-800'
-              }`}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Senha</label>
+            <div className="relative">
+              <input 
+                type="password" 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
+                placeholder="••••••"
+              />
+              <Lock className="absolute left-3 top-2.5 text-slate-400" size={18} />
+            </div>
+          </div>
+
+          {error && <p className="text-red-500 text-sm text-center bg-red-50 dark:bg-red-900/20 py-2 rounded">{error}</p>}
+
+          <button 
+            type="submit" 
+            className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition shadow-lg shadow-blue-200 dark:shadow-none"
+          >
+            Entrar
+          </button>
+        </form>
+
+        <div className="mt-8">
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-slate-200 dark:border-slate-700"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white dark:bg-slate-900 text-slate-500">Acesso Rápido (Demo)</span>
+            </div>
+          </div>
+
+          <div className="mt-4 space-y-2">
+            <button 
+              onClick={() => loginAs(UserRole.TECHNICIAN)}
+              className="w-full flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition group"
             >
-              <div className={`p-3 rounded-full ${
-                selectedUser?.id === user.id ? 'bg-white dark:bg-slate-800' : 'bg-slate-50 dark:bg-slate-700'
-              }`}>
-                {getRoleIcon(user.role)}
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-800 dark:text-white">{user.name}</span>
-                    <span className="text-xs font-mono uppercase tracking-wider text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
-                        {getRoleLabel(user.role)}
-                    </span>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 dark:text-green-400">T</div>
+                <div className="text-left">
+                  <p className="text-sm font-medium text-slate-800 dark:text-white">Técnico</p>
+                  <p className="text-xs text-slate-500">Apenas executa rondas</p>
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-tight">
-                    {getRoleDesc(user.role)}
-                </p>
               </div>
+              <ChevronRight size={16} className="text-slate-400 group-hover:text-green-500" />
             </button>
-          ))}
+
+            <button 
+              onClick={() => loginAs(UserRole.ANALYST)}
+              className="w-full flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center text-purple-600 dark:text-purple-400">A</div>
+                <div className="text-left">
+                  <p className="text-sm font-medium text-slate-800 dark:text-white">Analista</p>
+                  <p className="text-xs text-slate-500">Cria tarefas e modelos</p>
+                </div>
+              </div>
+              <ChevronRight size={16} className="text-slate-400 group-hover:text-purple-500" />
+            </button>
+
+            <button 
+              onClick={() => loginAs(UserRole.SUPERVISOR)}
+              className="w-full flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-orange-600 dark:text-orange-400">S</div>
+                <div className="text-left">
+                  <p className="text-sm font-medium text-slate-800 dark:text-white">Supervisor</p>
+                  <p className="text-xs text-slate-500">Relatórios e gestão total</p>
+                </div>
+              </div>
+              <ChevronRight size={16} className="text-slate-400 group-hover:text-orange-500" />
+            </button>
+          </div>
         </div>
-
-        <button
-          onClick={handleLogin}
-          disabled={!selectedUser}
-          className={`w-full mt-8 py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all ${
-            selectedUser 
-              ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200 dark:shadow-none translate-y-0' 
-              : 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
-          }`}
-        >
-          Acessar Sistema <ArrowRight size={20} />
-        </button>
       </div>
-
-      <p className="mt-8 text-center text-sm text-slate-400 dark:text-slate-600">
-        &copy; 2025 RondaGuard Security Systems
-      </p>
     </div>
   );
 };

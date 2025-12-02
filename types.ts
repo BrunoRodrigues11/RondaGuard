@@ -11,24 +11,11 @@ export interface ChecklistTemplate {
   items: string[];
 }
 
-export enum UserRole {
-  TECHNICIAN = 'TECHNICIAN', // Apenas executa
-  ANALYST = 'ANALYST',       // Cria tarefas e templates
-  SUPERVISOR = 'SUPERVISOR'  // Vê relatórios e dashboards
-}
-
-export interface User {
-  id: string;
-  name: string;
-  role: UserRole;
-  avatar?: string;
-}
-
 export interface Task {
   id: string;
   sector: string;
   title: string;
-  ticketId?: string;
+  ticketId?: string; // Novo campo: Número do Chamado
   description: string;
   responsible: string; 
   checklist: ChecklistItem[];
@@ -39,7 +26,7 @@ export interface RoundLog {
   id: string;
   taskId: string;
   taskTitle: string;
-  ticketId?: string;
+  ticketId?: string; // Novo campo: Número do Chamado
   sector: string;
   responsible: string; 
   startTime: number;
@@ -49,8 +36,9 @@ export interface RoundLog {
   observations: string;
   issuesDetected: boolean;
   photos: string[]; 
-  signature?: string; 
-  validationToken?: string; 
+  aiAnalysis?: string;
+  signature?: string; // Base64 image
+  validationToken?: string; // Unique hash
 }
 
 export enum AppView {
@@ -59,4 +47,19 @@ export enum AppView {
   EXECUTE_ROUND = 'EXECUTE_ROUND',
   HISTORY = 'HISTORY',
   TEMPLATES = 'TEMPLATES',
+}
+
+// --- Auth Types ---
+
+export enum UserRole {
+  TECHNICIAN = 'TECHNICIAN', // Apenas executa
+  ANALYST = 'ANALYST',       // Cria tarefas e modelos
+  SUPERVISOR = 'SUPERVISOR'  // Vê relatórios e gerencia tudo
+}
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
 }
