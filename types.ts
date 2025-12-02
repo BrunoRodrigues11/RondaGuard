@@ -41,6 +41,12 @@ export interface RoundLog {
   validationToken?: string; // Unique hash
 }
 
+export interface ReportConfig {
+  companyName: string;
+  logo: string | null; // Base64
+  headerColor: string; // Hex Code
+}
+
 export enum AppView {
   DASHBOARD = 'DASHBOARD',
   CREATE_TASK = 'CREATE_TASK',
@@ -48,6 +54,7 @@ export enum AppView {
   HISTORY = 'HISTORY',
   TEMPLATES = 'TEMPLATES',
   USER_MANAGEMENT = 'USER_MANAGEMENT',
+  SETTINGS = 'SETTINGS',
 }
 
 // --- Auth Types ---

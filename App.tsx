@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, PlusCircle, History as HistoryIcon, ShieldCheck, LogOut, ListChecks, Sun, Moon, Users } from 'lucide-react';
-import { Task, RoundLog, AppView, ChecklistTemplate, User, UserRole } from './types';
+import { LayoutDashboard, PlusCircle, History as HistoryIcon, ShieldCheck, LogOut, ListChecks, Sun, Moon, Users, Settings } from 'lucide-react';
+import { Task, RoundLog, AppView, ChecklistTemplate, User, UserRole, ReportConfig } from './types';
 import Dashboard from './components/Dashboard';
 import TaskCreator from './components/TaskCreator';
 import ActiveRound from './components/ActiveRound';
 import History from './components/History';
 import TemplateManager from './components/TemplateManager';
 import UserManager from './components/UserManager';
+import ReportConfigScreen from './components/ReportConfig';
 import Login from './components/Login';
 
 // Default templates
@@ -65,6 +66,12 @@ const DEFAULT_USERS: User[] = [
   { id: 'u4', name: 'Administrador', email: 'admin@rondaguard.com', password: '123', role: UserRole.ADMIN, active: true },
 ];
 
+const DEFAULT_REPORT_CONFIG: ReportConfig = {
+  companyName: 'RondaGuard Pro',
+  logo: null,
+  headerColor: '#3b82f6'
+};
+
 // --- LocalStorage Helpers ---
 const loadTasks = (): Task[] => {
   try {
@@ -94,6 +101,13 @@ const loadUsers = (): User[] => {
     } catch(e) { return DEFAULT_USERS; }
 };
 
+const loadReportConfig = (): ReportConfig => {
+    try {
+        const saved = localStorage.getItem('ronda_report_config');
+        return saved ? JSON.parse(saved) : DEFAULT_REPORT_CONFIG;
+    } catch(e) { return DEFAULT_REPORT_CONFIG; }
+};
+
 const App: React.FC = () => {
   // Auth State
   const [user, setUser] = useState<User | null>(null);
@@ -103,6 +117,7 @@ const App: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [logs, setLogs] = useState<RoundLog[]>([]);
   const [templates, setTemplates] = useState<ChecklistTemplate[]>([]);
+  const [reportConfig, setReportConfig] = useState<ReportConfig>(DEFAULT_REPORT_CONFIG);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [taskToEdit, setTaskToEdit] = useState<Task | null>(null);
   
@@ -121,6 +136,7 @@ const App: React.FC = () => {
     setLogs(loadHistory());
     setTemplates(loadTemplates());
     setUsersList(loadUsers());
+    setReportConfig(loadReportConfig());
     
     // Check for logged user in session
     const savedUser = sessionStorage.getItem('ronda_user');
@@ -154,6 +170,10 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('ronda_users', JSON.stringify(usersList));
   }, [usersList]);
+
+  useEffect(() => {
+    localStorage.setItem('ronda_report_config', JSON.stringify(reportConfig));
+  }, [reportConfig]);
 
   // Theme Logic
   useEffect(() => {
@@ -279,6 +299,12 @@ const App: React.FC = () => {
       }));
   };
 
+  // Settings
+  const handleSaveReportConfig = (config: ReportConfig) => {
+      setReportConfig(config);
+      setCurrentView(AppView.DASHBOARD);
+  };
+
   // --- Render Helpers ---
 
   // If not logged in, show login screen
@@ -303,6 +329,7 @@ const App: React.FC = () => {
   const canViewHistory = user.role === UserRole.SUPERVISOR || user.role === UserRole.ADMIN;
   const canManageTemplates = user.role === UserRole.ANALYST || user.role === UserRole.SUPERVISOR || user.role === UserRole.ADMIN;
   const canManageUsers = user.role === UserRole.ADMIN;
+  const canAccessSettings = user.role === UserRole.ADMIN || user.role === UserRole.SUPERVISOR;
 
   const renderContent = () => {
     switch(currentView) {
@@ -340,7 +367,7 @@ const App: React.FC = () => {
         ) : <div>Erro: Nenhuma tarefa selecionada</div>;
       case AppView.HISTORY:
         if (!canViewHistory) return <div className="p-8 text-center text-red-500">Acesso Negado: Apenas supervisores podem acessar o histórico.</div>;
-        return <History logs={logs} onUpdateLog={handleUpdateLog} />;
+        return <History logs={logs} onUpdateLog={handleUpdateLog} reportConfig={reportConfig} />;
       case AppView.TEMPLATES:
         if (!canManageTemplates) return <div className="p-8 text-center text-red-500">Acesso Negado</div>;
         return (
@@ -358,6 +385,15 @@ const App: React.FC = () => {
                 users={usersList}
                 onSave={handleSaveUser}
                 onToggleStatus={handleToggleUserStatus}
+                onCancel={() => setCurrentView(AppView.DASHBOARD)}
+            />
+        );
+      case AppView.SETTINGS:
+        if (!canAccessSettings) return <div className="p-8 text-center text-red-500">Acesso Negado</div>;
+        return (
+            <ReportConfigScreen 
+                config={reportConfig}
+                onSave={handleSaveReportConfig}
                 onCancel={() => setCurrentView(AppView.DASHBOARD)}
             />
         );
@@ -438,6 +474,16 @@ const App: React.FC = () => {
                 >
                 <Users size={20} />
                 <span className="hidden md:block ml-3 font-medium">Usuários</span>
+                </button>
+            )}
+            
+            {canAccessSettings && (
+                <button 
+                onClick={() => setCurrentView(AppView.SETTINGS)}
+                className={`flex items-center p-3 rounded-lg transition-colors ${currentView === AppView.SETTINGS ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+                >
+                <Settings size={20} />
+                <span className="hidden md:block ml-3 font-medium">Configurações</span>
                 </button>
             )}
           </nav>

@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
-import { RoundLog } from '../types';
+import { RoundLog, ReportConfig } from '../types';
 import { FileText, Calendar, Clock, MapPin, Search, Download, User, ShieldCheck, Ticket } from 'lucide-react';
 import jsPDF from 'jspdf';
 
 interface HistoryProps {
   logs: RoundLog[];
   onUpdateLog?: (updatedLog: RoundLog) => void;
+  reportConfig: ReportConfig;
 }
 
-const History: React.FC<HistoryProps> = ({ logs }) => {
+const History: React.FC<HistoryProps> = ({ logs, reportConfig }) => {
   const [filter, setFilter] = useState('');
 
   const filteredLogs = logs.filter(log => 
@@ -23,16 +24,39 @@ const History: React.FC<HistoryProps> = ({ logs }) => {
     const doc = new jsPDF();
     const pageHeight = doc.internal.pageSize.height;
     
-    // Header
-    doc.setFillColor(59, 130, 246); // Blue header
-    doc.rect(0, 0, 210, 40, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(22);
-    doc.text("Relatório de Ronda", 20, 25);
+    // Header Configuration
+    const headerColor = reportConfig.headerColor || '#3b82f6';
+    const companyTitle = reportConfig.companyName || "Relatório de Ronda";
     
+    // Header Background
+    doc.setFillColor(headerColor);
+    doc.rect(0, 0, 210, 40, 'F');
+    
+    // Logo & Title
+    doc.setTextColor(255, 255, 255);
+    
+    let textX = 20;
+    
+    if (reportConfig.logo) {
+        try {
+            // Add Logo (Right aligned for header)
+            doc.addImage(reportConfig.logo, 'PNG', 170, 5, 30, 30);
+        } catch (e) {
+            console.error("Erro ao carregar logo", e);
+        }
+    }
+
+    doc.setFontSize(22);
+    doc.text(companyTitle, textX, 20);
+    
+    if (reportConfig.companyName) {
+        doc.setFontSize(12);
+        doc.text("Relatório de Execução de Ronda", textX, 30);
+    }
+
     doc.setFontSize(10);
     if(log.validationToken) {
-        doc.text(`Token: ${log.validationToken}`, 150, 25);
+        doc.text(`Token: ${log.validationToken}`, textX, 38);
     }
     
     // Info
