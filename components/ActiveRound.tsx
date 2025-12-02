@@ -1,14 +1,16 @@
+
 import React, { useState, useEffect, useRef } from 'react';
-import { Task, RoundLog, ChecklistItem } from '../types';
-import { Play, Square, Camera, CheckSquare, Square as SquareIcon, AlertOctagon, User, PenTool, Eraser, Ticket } from 'lucide-react';
+import { Task, RoundLog, ChecklistItem, User } from '../types';
+import { Play, Square, Camera, CheckSquare, Square as SquareIcon, AlertOctagon, User as UserIcon, PenTool, Eraser, Ticket } from 'lucide-react';
 
 interface ActiveRoundProps {
   task: Task;
+  user: User;
   onFinish: (log: RoundLog) => void;
   onCancel: () => void;
 }
 
-const ActiveRound: React.FC<ActiveRoundProps> = ({ task, onFinish, onCancel }) => {
+const ActiveRound: React.FC<ActiveRoundProps> = ({ task, user, onFinish, onCancel }) => {
   const [isRunning, setIsRunning] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [startTime, setStartTime] = useState<number | null>(null);
@@ -16,7 +18,6 @@ const ActiveRound: React.FC<ActiveRoundProps> = ({ task, onFinish, onCancel }) =
   const [observations, setObservations] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
   const [issuesDetected, setIssuesDetected] = useState(false);
-  const [currentResponsible, setCurrentResponsible] = useState(task.responsible || '');
   
   // Signature State
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -36,10 +37,6 @@ const ActiveRound: React.FC<ActiveRoundProps> = ({ task, onFinish, onCancel }) =
   }, [isRunning]);
 
   const handleStart = () => {
-    if (!currentResponsible.trim()) {
-        alert("Por favor, identifique o responsável pela ronda.");
-        return;
-    }
     setIsRunning(true);
     setStartTime(Date.now());
   };
@@ -160,9 +157,9 @@ const ActiveRound: React.FC<ActiveRoundProps> = ({ task, onFinish, onCancel }) =
       id: Date.now().toString(),
       taskId: task.id,
       taskTitle: task.title,
-      ticketId: task.ticketId, // Persist ticket ID
+      ticketId: task.ticketId, 
       sector: task.sector,
-      responsible: currentResponsible,
+      responsible: user.name, // Use logged in user name
       startTime,
       endTime,
       durationSeconds: elapsedSeconds,
@@ -196,7 +193,7 @@ const ActiveRound: React.FC<ActiveRoundProps> = ({ task, onFinish, onCancel }) =
                     <Ticket size={12} /> {task.ticketId}
                 </span>
              )}
-             {isRunning && <span className="flex items-center gap-1 border-l border-slate-200 dark:border-slate-600 pl-4 ml-2"><User size={14}/> {currentResponsible}</span>}
+             {isRunning && <span className="flex items-center gap-1 border-l border-slate-200 dark:border-slate-600 pl-4 ml-2"><UserIcon size={14}/> {user.name}</span>}
           </div>
         </div>
         <div className="flex items-center gap-4 bg-slate-50 dark:bg-slate-700 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-600">
@@ -212,22 +209,9 @@ const ActiveRound: React.FC<ActiveRoundProps> = ({ task, onFinish, onCancel }) =
           </div>
           <h3 className="text-xl font-semibold text-slate-800 dark:text-white">Pronto para iniciar?</h3>
           <p className="text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-6">
-            Confirme o responsável e clique em iniciar. O cronômetro começará imediatamente.
+            Você está logado como <strong>{user.name}</strong>. Esta informação será registrada na ronda.
           </p>
           
-          <div className="max-w-xs mx-auto mb-6 text-left">
-             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Responsável pela execução</label>
-             <div className="relative">
-                <input 
-                  type="text" 
-                  value={currentResponsible}
-                  onChange={(e) => setCurrentResponsible(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-700 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                />
-                <User className="absolute left-3 top-2.5 text-slate-400" size={18} />
-             </div>
-          </div>
-
           <div className="pt-4 flex justify-center gap-3">
             <button onClick={onCancel} className="px-6 py-3 text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg transition">
               Voltar

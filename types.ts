@@ -11,11 +11,24 @@ export interface ChecklistTemplate {
   items: string[];
 }
 
+export enum UserRole {
+  TECHNICIAN = 'TECHNICIAN', // Apenas executa
+  ANALYST = 'ANALYST',       // Cria tarefas e templates
+  SUPERVISOR = 'SUPERVISOR'  // Vê relatórios e dashboards
+}
+
+export interface User {
+  id: string;
+  name: string;
+  role: UserRole;
+  avatar?: string;
+}
+
 export interface Task {
   id: string;
   sector: string;
   title: string;
-  ticketId?: string; // Novo campo: Número do Chamado
+  ticketId?: string;
   description: string;
   responsible: string; 
   checklist: ChecklistItem[];
@@ -26,7 +39,7 @@ export interface RoundLog {
   id: string;
   taskId: string;
   taskTitle: string;
-  ticketId?: string; // Novo campo: Número do Chamado
+  ticketId?: string;
   sector: string;
   responsible: string; 
   startTime: number;
@@ -36,9 +49,8 @@ export interface RoundLog {
   observations: string;
   issuesDetected: boolean;
   photos: string[]; 
-  aiAnalysis?: string;
-  signature?: string; // Base64 image
-  validationToken?: string; // Unique hash
+  signature?: string; 
+  validationToken?: string; 
 }
 
 export enum AppView {
