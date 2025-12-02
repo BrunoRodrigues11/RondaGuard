@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, PlusCircle, History as HistoryIcon, ShieldCheck, LogOut, ListChecks, Sun, Moon } from 'lucide-react';
+import { LayoutDashboard, PlusCircle, History as HistoryIcon, ShieldCheck, LogOut, ListChecks, Sun, Moon, Users } from 'lucide-react';
 import { Task, RoundLog, AppView, ChecklistTemplate, User, UserRole } from './types';
 import Dashboard from './components/Dashboard';
 import TaskCreator from './components/TaskCreator';
 import ActiveRound from './components/ActiveRound';
 import History from './components/History';
 import TemplateManager from './components/TemplateManager';
+import UserManager from './components/UserManager';
 import Login from './components/Login';
 
-// Default templates moved from TaskCreator to App level for initialization
+// Default templates
 const DEFAULT_TEMPLATES: ChecklistTemplate[] = [
   {
     id: "tpl_1",
@@ -56,6 +57,14 @@ const DEFAULT_TEMPLATES: ChecklistTemplate[] = [
   }
 ];
 
+// Default Users for Mock
+const DEFAULT_USERS: User[] = [
+  { id: 'u1', name: 'Carlos Técnico', email: 'tec@rondaguard.com', password: '123', role: UserRole.TECHNICIAN, active: true },
+  { id: 'u2', name: 'Ana Analista', email: 'ana@rondaguard.com', password: '123', role: UserRole.ANALYST, active: true },
+  { id: 'u3', name: 'Roberto Supervisor', email: 'sup@rondaguard.com', password: '123', role: UserRole.SUPERVISOR, active: true },
+  { id: 'u4', name: 'Administrador', email: 'admin@rondaguard.com', password: '123', role: UserRole.ADMIN, active: true },
+];
+
 // --- LocalStorage Helpers ---
 const loadTasks = (): Task[] => {
   try {
@@ -78,9 +87,17 @@ const loadTemplates = (): ChecklistTemplate[] => {
   } catch(e) { return DEFAULT_TEMPLATES; }
 };
 
+const loadUsers = (): User[] => {
+    try {
+        const saved = localStorage.getItem('ronda_users');
+        return saved ? JSON.parse(saved) : DEFAULT_USERS;
+    } catch(e) { return DEFAULT_USERS; }
+};
+
 const App: React.FC = () => {
   // Auth State
   const [user, setUser] = useState<User | null>(null);
+  const [usersList, setUsersList] = useState<User[]>([]);
 
   const [currentView, setCurrentView] = useState<AppView>(AppView.DASHBOARD);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -103,11 +120,21 @@ const App: React.FC = () => {
     setTasks(loadTasks());
     setLogs(loadHistory());
     setTemplates(loadTemplates());
+    setUsersList(loadUsers());
     
-    // Check for logged user in session (optional persistence)
+    // Check for logged user in session
     const savedUser = sessionStorage.getItem('ronda_user');
     if (savedUser) {
-      setUser(JSON.parse(savedUser));
+      const parsedUser = JSON.parse(savedUser);
+      // Re-validate against current list to check if active
+      const currentList = loadUsers();
+      const validUser = currentList.find(u => u.id === parsedUser.id && u.active);
+      
+      if (validUser) {
+        setUser(validUser);
+      } else {
+        sessionStorage.removeItem('ronda_user');
+      }
     }
   }, []);
 
@@ -123,6 +150,10 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('ronda_templates', JSON.stringify(templates));
   }, [templates]);
+
+  useEffect(() => {
+    localStorage.setItem('ronda_users', JSON.stringify(usersList));
+  }, [usersList]);
 
   // Theme Logic
   useEffect(() => {
@@ -150,7 +181,9 @@ const App: React.FC = () => {
     setCurrentView(AppView.DASHBOARD);
   };
 
-  // Handlers
+  // --- Handlers ---
+  
+  // Tasks
   const handleSaveTask = (task: Task) => {
     setTasks(prev => {
         const exists = prev.some(t => t.id === task.id);
@@ -172,7 +205,7 @@ const App: React.FC = () => {
   const handleDuplicateTask = (task: Task) => {
     const taskCopy: Task = {
         ...task,
-        id: '', // Empty ID tells TaskCreator this is a new entry
+        id: '', 
         title: `${task.title} (Cópia)`,
         createdAt: Date.now()
     };
@@ -192,7 +225,7 @@ const App: React.FC = () => {
   const handleFinishRound = (log: RoundLog) => {
     setLogs(prev => [log, ...prev]);
     setActiveTask(null);
-    setCurrentView(AppView.HISTORY); // Or Dashboard if technician? Let's go to History for now so they see it's done.
+    setCurrentView(AppView.HISTORY);
   };
   
   const handleUpdateLog = (updatedLog: RoundLog) => {
@@ -209,7 +242,7 @@ const App: React.FC = () => {
     setCurrentView(AppView.CREATE_TASK);
   };
 
-  // Template Handlers
+  // Templates
   const handleSaveTemplate = (template: ChecklistTemplate) => {
     setTemplates(prev => {
       const exists = prev.some(t => t.id === template.id);
@@ -223,6 +256,27 @@ const App: React.FC = () => {
 
   const handleDeleteTemplate = (id: string) => {
     setTemplates(prev => prev.filter(t => t.id !== id));
+  };
+
+  // Users
+  const handleSaveUser = (userToSave: User) => {
+    setUsersList(prev => {
+        const exists = prev.some(u => u.id === userToSave.id);
+        if (exists) {
+            return prev.map(u => u.id === userToSave.id ? userToSave : u);
+        } else {
+            return [...prev, userToSave];
+        }
+    });
+  };
+
+  const handleToggleUserStatus = (userId: string) => {
+      setUsersList(prev => prev.map(u => {
+          if (u.id === userId) {
+              return { ...u, active: !u.active };
+          }
+          return u;
+      }));
   };
 
   // --- Render Helpers ---
@@ -239,15 +293,16 @@ const App: React.FC = () => {
                     {darkMode ? <Sun size={20} /> : <Moon size={20} />}
                 </button>
             </div>
-            <Login onLogin={handleLogin} />
+            <Login onLogin={handleLogin} users={usersList} />
         </div>
     );
   }
 
   // Permission Logic
-  const canCreate = user.role === UserRole.ANALYST || user.role === UserRole.SUPERVISOR;
-  const canViewHistory = user.role === UserRole.SUPERVISOR; // As per prompt requirement
-  const canManageTemplates = user.role === UserRole.ANALYST || user.role === UserRole.SUPERVISOR;
+  const canCreate = user.role === UserRole.ANALYST || user.role === UserRole.SUPERVISOR || user.role === UserRole.ADMIN;
+  const canViewHistory = user.role === UserRole.SUPERVISOR || user.role === UserRole.ADMIN;
+  const canManageTemplates = user.role === UserRole.ANALYST || user.role === UserRole.SUPERVISOR || user.role === UserRole.ADMIN;
+  const canManageUsers = user.role === UserRole.ADMIN;
 
   const renderContent = () => {
     switch(currentView) {
@@ -296,6 +351,16 @@ const App: React.FC = () => {
             onCancel={() => setCurrentView(AppView.DASHBOARD)}
           />
         );
+      case AppView.USER_MANAGEMENT:
+        if (!canManageUsers) return <div className="p-8 text-center text-red-500">Acesso Negado</div>;
+        return (
+            <UserManager 
+                users={usersList}
+                onSave={handleSaveUser}
+                onToggleStatus={handleToggleUserStatus}
+                onCancel={() => setCurrentView(AppView.DASHBOARD)}
+            />
+        );
       default:
         return <div>View not found</div>;
     }
@@ -303,7 +368,7 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden font-sans transition-colors duration-300">
-      {/* Sidebar - Simplified */}
+      {/* Sidebar */}
       <aside className="w-20 md:w-64 bg-slate-900 dark:bg-slate-900 border-r border-slate-800 flex-shrink-0 flex flex-col justify-between transition-all duration-300">
         <div>
           <div className="h-16 flex items-center justify-center md:justify-start md:px-6 border-b border-slate-800">
@@ -363,6 +428,16 @@ const App: React.FC = () => {
                 >
                 <ListChecks size={20} />
                 <span className="hidden md:block ml-3 font-medium">Modelos</span>
+                </button>
+            )}
+
+            {canManageUsers && (
+                <button 
+                onClick={() => setCurrentView(AppView.USER_MANAGEMENT)}
+                className={`flex items-center p-3 rounded-lg transition-colors ${currentView === AppView.USER_MANAGEMENT ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+                >
+                <Users size={20} />
+                <span className="hidden md:block ml-3 font-medium">Usuários</span>
                 </button>
             )}
           </nav>

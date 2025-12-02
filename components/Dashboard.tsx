@@ -20,12 +20,17 @@ const Dashboard: React.FC<DashboardProps> = ({ tasks, history, currentUser, onNa
   
   // Role checks
   const isTechnician = currentUser?.role === UserRole.TECHNICIAN;
-  const canEdit = currentUser?.role === UserRole.ANALYST || currentUser?.role === UserRole.SUPERVISOR;
-  const canDelete = currentUser?.role === UserRole.SUPERVISOR; // Só supervisor deleta
-  // Analista pode editar, mas vamos permitir deletar também para simplificar, ou seguir a regra estrita.
-  // Regra do prompt anterior: Analista cria e edita. Supervisor gera relatórios. 
-  // Vou permitir Analista excluir também para não bloquear fluxo, mas técnico não vê nada disso.
-  const canManageTasks = currentUser?.role !== UserRole.TECHNICIAN;
+  const isAdmin = currentUser?.role === UserRole.ADMIN;
+  
+  // Create/Edit/Duplicate: Analyst, Supervisor, Admin
+  const canManageTasks = currentUser?.role === UserRole.ANALYST || currentUser?.role === UserRole.SUPERVISOR || isAdmin;
+  
+  // Delete: Supervisor, Admin
+  const canDelete = currentUser?.role === UserRole.SUPERVISOR || isAdmin;
+  
+  // View Stats: Supervisor, Admin (and Analyst usually, but let's keep Analyst focused on Tasks as per prompt, or open it up)
+  // Let's allow Analyst to see stats too, only Technician is restricted.
+  const canViewStats = currentUser?.role !== UserRole.TECHNICIAN;
 
   // Calculate average time
   const avgTime = totalRounds > 0 
@@ -66,8 +71,8 @@ const Dashboard: React.FC<DashboardProps> = ({ tasks, history, currentUser, onNa
         </p>
       </header>
 
-      {/* Stats Cards - Hidden for Technicians to keep interface simple */}
-      {!isTechnician && (
+      {/* Stats Cards - Hidden for Technicians */}
+      {canViewStats && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 flex items-center space-x-4">
             <div className="p-3 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full">
@@ -111,8 +116,8 @@ const Dashboard: React.FC<DashboardProps> = ({ tasks, history, currentUser, onNa
         </div>
       )}
 
-      {/* Charts Section - Visible only to Supervisor */}
-      {currentUser?.role === UserRole.SUPERVISOR && (
+      {/* Charts Section - Supervisor/Admin */}
+      {(currentUser?.role === UserRole.SUPERVISOR || isAdmin) && (
         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
             <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4">Rondas por Setor</h3>
             <div className="h-64 w-full">
@@ -169,7 +174,7 @@ const Dashboard: React.FC<DashboardProps> = ({ tasks, history, currentUser, onNa
                   </div>
                   <p className="text-sm text-slate-500 dark:text-slate-400 mb-4 line-clamp-2 min-h-[2.5rem]">{task.description || "Sem descrição."}</p>
                   
-                  {/* Action Buttons - Only for Analysts/Supervisors */}
+                  {/* Action Buttons - Based on Roles */}
                   {canManageTasks && (
                     <div className="absolute top-4 right-4 flex gap-1 bg-white dark:bg-slate-800 rounded shadow-sm p-0.5 border border-slate-100 dark:border-slate-600">
                         <button 
@@ -186,7 +191,7 @@ const Dashboard: React.FC<DashboardProps> = ({ tasks, history, currentUser, onNa
                         >
                             <Pencil size={14} />
                         </button>
-                        {(canDelete) && (
+                        {canDelete && (
                             <button 
                                 onClick={() => handleDeleteClick(task.id)}
                                 className="p-1.5 text-slate-400 hover:text-red-600 dark:hover:text-red-400 rounded-md transition"

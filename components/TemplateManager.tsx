@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { ChecklistTemplate } from '../types';
-import { Plus, Trash2, Save, X, Edit, ListChecks, ArrowLeft } from 'lucide-react';
+import { Plus, Trash2, Save, X, Edit, ListChecks, ArrowLeft, Upload, FileSpreadsheet, HelpCircle } from 'lucide-react';
+import { read, utils } from 'xlsx';
 
 interface TemplateManagerProps {
   templates: ChecklistTemplate[];
@@ -17,6 +18,9 @@ const TemplateManager: React.FC<TemplateManagerProps> = ({ templates, onSave, on
   const [name, setName] = useState('');
   const [itemInput, setItemInput] = useState('');
   const [items, setItems] = useState<string[]>([]);
+
+  // File Upload Ref
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleEditClick = (template: ChecklistTemplate) => {
     setName(template.name);
@@ -61,22 +65,112 @@ const TemplateManager: React.FC<TemplateManagerProps> = ({ templates, onSave, on
     setItems([]);
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = read(data);
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonData = utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+
+      // Remove header row if it exists (simple check: if row 0 has "Nome" or "Modelo")
+      let rows = jsonData;
+      if (rows.length > 0 && typeof rows[0][0] === 'string' && 
+         (rows[0][0].toLowerCase().includes('nome') || rows[0][0].toLowerCase().includes('modelo'))) {
+        rows = rows.slice(1);
+      }
+
+      // Group by Template Name
+      // Expected Format: Col A = Template Name, Col B = Item Description
+      const groupedTemplates: Record<string, string[]> = {};
+
+      rows.forEach((row) => {
+        const templateName = row[0]; // Col A
+        const itemDesc = row[1];     // Col B
+
+        if (templateName && itemDesc) {
+           const cleanName = String(templateName).trim();
+           const cleanItem = String(itemDesc).trim();
+
+           if (!groupedTemplates[cleanName]) {
+             groupedTemplates[cleanName] = [];
+           }
+           groupedTemplates[cleanName].push(cleanItem);
+        }
+      });
+
+      // Convert to ChecklistTemplate objects and Save
+      let count = 0;
+      Object.entries(groupedTemplates).forEach(([tplName, tplItems]) => {
+         const newTemplate: ChecklistTemplate = {
+           id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+           name: tplName,
+           items: tplItems
+         };
+         onSave(newTemplate);
+         count++;
+      });
+
+      alert(`${count} modelo(s) importado(s) com sucesso!`);
+
+    } catch (error) {
+      console.error("Erro ao importar Excel:", error);
+      alert("Erro ao processar o arquivo. Verifique se é um arquivo Excel válido.");
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Modelos de Checklist</h2>
-          <p className="text-slate-500 dark:text-slate-400">Crie padrões de verificação para agilizar o cadastro de rondas.</p>
+          <p className="text-slate-500 dark:text-slate-400">Crie padrões de verificação ou importe via Excel.</p>
         </div>
         {!isEditing && (
-            <button 
-                onClick={handleNewClick}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center gap-2 shadow-sm"
-            >
-                <Plus size={20} /> Novo Modelo
-            </button>
+            <div className="flex gap-2">
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handleFileUpload} 
+                  className="hidden" 
+                  accept=".xlsx, .xls" 
+                />
+                <button 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition flex items-center gap-2 shadow-sm"
+                    title="Formato: Coluna A = Nome do Modelo, Coluna B = Item"
+                >
+                    <Upload size={20} /> <span className="hidden sm:inline">Importar Excel</span>
+                </button>
+                <button 
+                    onClick={handleNewClick}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center gap-2 shadow-sm"
+                >
+                    <Plus size={20} /> <span className="hidden sm:inline">Novo Modelo</span>
+                </button>
+            </div>
         )}
       </header>
+      
+      {/* Help Banner for Import */}
+      {!isEditing && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 p-4 rounded-lg flex items-start gap-3">
+           <FileSpreadsheet className="text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" size={20} />
+           <div>
+              <p className="text-sm text-blue-800 dark:text-blue-300 font-medium mb-1">Como importar modelos?</p>
+              <p className="text-xs text-blue-600 dark:text-blue-400">
+                Crie uma planilha Excel com duas colunas. 
+                <strong> Coluna A:</strong> Nome do Modelo (ex: "Ronda Noturna"). 
+                <strong> Coluna B:</strong> Item do Checklist. 
+                Repita o nome do modelo nas linhas para adicionar múltiplos itens ao mesmo modelo.
+              </p>
+           </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* List of Templates */}

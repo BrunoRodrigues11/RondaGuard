@@ -47,6 +47,7 @@ export enum AppView {
   EXECUTE_ROUND = 'EXECUTE_ROUND',
   HISTORY = 'HISTORY',
   TEMPLATES = 'TEMPLATES',
+  USER_MANAGEMENT = 'USER_MANAGEMENT',
 }
 
 // --- Auth Types ---
@@ -54,12 +55,15 @@ export enum AppView {
 export enum UserRole {
   TECHNICIAN = 'TECHNICIAN', // Apenas executa
   ANALYST = 'ANALYST',       // Cria tarefas e modelos
-  SUPERVISOR = 'SUPERVISOR'  // Vê relatórios e gerencia tudo
+  SUPERVISOR = 'SUPERVISOR', // Vê relatórios e gerencia tarefas
+  ADMIN = 'ADMIN'            // Acesso total + Gestão de Usuários
 }
 
 export interface User {
   id: string;
   name: string;
   email: string;
+  password?: string; // Para simulação de login
   role: UserRole;
+  active: boolean;
 }

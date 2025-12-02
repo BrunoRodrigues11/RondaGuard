@@ -1,43 +1,48 @@
 import React, { useState } from 'react';
 import { User, UserRole } from '../types';
-import { ShieldCheck, User as UserIcon, Lock, ChevronRight } from 'lucide-react';
+import { ShieldCheck, User as UserIcon, Lock, ChevronRight, AlertCircle } from 'lucide-react';
 
 interface LoginProps {
   onLogin: (user: User) => void;
+  users: User[]; // Login now receives the user list to validate credentials
 }
 
-const Login: React.FC<LoginProps> = ({ onLogin }) => {
+const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  // Mock authentication logic
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Simple mock logic for demonstration
-    if (email === 'tec@rondaguard.com' && password === '123') {
-      onLogin({ id: 'u1', name: 'Carlos Técnico', email, role: UserRole.TECHNICIAN });
-    } else if (email === 'ana@rondaguard.com' && password === '123') {
-      onLogin({ id: 'u2', name: 'Ana Analista', email, role: UserRole.ANALYST });
-    } else if (email === 'sup@rondaguard.com' && password === '123') {
-      onLogin({ id: 'u3', name: 'Roberto Supervisor', email, role: UserRole.SUPERVISOR });
-    } else {
-      setError('Credenciais inválidas. Tente usar os botões de teste abaixo.');
+    setError('');
+
+    const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+
+    if (!user) {
+        setError('Usuário não encontrado.');
+        return;
     }
+
+    if (user.password !== password) {
+        setError('Senha incorreta.');
+        return;
+    }
+
+    if (!user.active) {
+        setError('Acesso bloqueado. Contate o administrador.');
+        return;
+    }
+
+    onLogin(user);
   };
 
-  const loginAs = (role: UserRole) => {
-    switch (role) {
-      case UserRole.TECHNICIAN:
-        onLogin({ id: 'u1', name: 'Carlos Técnico', email: 'tec@rondaguard.com', role: UserRole.TECHNICIAN });
-        break;
-      case UserRole.ANALYST:
-        onLogin({ id: 'u2', name: 'Ana Analista', email: 'ana@rondaguard.com', role: UserRole.ANALYST });
-        break;
-      case UserRole.SUPERVISOR:
-        onLogin({ id: 'u3', name: 'Roberto Supervisor', email: 'sup@rondaguard.com', role: UserRole.SUPERVISOR });
-        break;
+  const loginAsDemo = (role: UserRole) => {
+    // Find the first active user with this role for demo purposes
+    const demoUser = users.find(u => u.role === role && u.active);
+    if (demoUser) {
+        onLogin(demoUser);
+    } else {
+        setError(`Nenhum usuário ativo encontrado para o perfil ${role}.`);
     }
   };
 
@@ -81,7 +86,12 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             </div>
           </div>
 
-          {error && <p className="text-red-500 text-sm text-center bg-red-50 dark:bg-red-900/20 py-2 rounded">{error}</p>}
+          {error && (
+            <div className="flex items-center gap-2 text-red-600 dark:text-red-400 text-sm bg-red-50 dark:bg-red-900/20 py-2 px-3 rounded">
+                <AlertCircle size={16} />
+                <span>{error}</span>
+            </div>
+          )}
 
           <button 
             type="submit" 
@@ -103,7 +113,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
           <div className="mt-4 space-y-2">
             <button 
-              onClick={() => loginAs(UserRole.TECHNICIAN)}
+              onClick={() => loginAsDemo(UserRole.TECHNICIAN)}
               className="w-full flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition group"
             >
               <div className="flex items-center gap-3">
@@ -117,7 +127,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             </button>
 
             <button 
-              onClick={() => loginAs(UserRole.ANALYST)}
+              onClick={() => loginAsDemo(UserRole.ANALYST)}
               className="w-full flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition group"
             >
               <div className="flex items-center gap-3">
@@ -131,7 +141,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             </button>
 
             <button 
-              onClick={() => loginAs(UserRole.SUPERVISOR)}
+              onClick={() => loginAsDemo(UserRole.SUPERVISOR)}
               className="w-full flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition group"
             >
               <div className="flex items-center gap-3">
@@ -142,6 +152,20 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 </div>
               </div>
               <ChevronRight size={16} className="text-slate-400 group-hover:text-orange-500" />
+            </button>
+
+            <button 
+              onClick={() => loginAsDemo(UserRole.ADMIN)}
+              className="w-full flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center text-red-600 dark:text-red-400">ADM</div>
+                <div className="text-left">
+                  <p className="text-sm font-medium text-slate-800 dark:text-white">Administrador</p>
+                  <p className="text-xs text-slate-500">Gestão de Usuários e Sistema</p>
+                </div>
+              </div>
+              <ChevronRight size={16} className="text-slate-400 group-hover:text-red-500" />
             </button>
           </div>
         </div>
