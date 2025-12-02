@@ -60,11 +60,18 @@ const Dashboard: React.FC<DashboardProps> = ({ tasks, history, currentUser, onNa
     }
   };
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) return 'Bom dia';
+    if (hour >= 12 && hour < 18) return 'Boa tarde';
+    return 'Boa noite';
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <header className="mb-8">
         <h2 className="text-2xl font-bold text-slate-800 dark:text-white">
-            Olá, {currentUser?.name.split(' ')[0]}
+            Olá, {currentUser?.name.split(' ')[0]}. {getGreeting()}!
         </h2>
         <p className="text-slate-500 dark:text-slate-400">
             {isTechnician ? 'Selecione uma tarefa abaixo para iniciar sua ronda.' : 'Visão geral do sistema de rondas.'}

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { User, UserRole } from '../types';
-import { ShieldCheck, User as UserIcon, Lock, ChevronRight, AlertCircle } from 'lucide-react';
+import { ShieldCheck, User as UserIcon, Lock, ChevronRight, AlertCircle, Info } from 'lucide-react';
 
 interface LoginProps {
   onLogin: (user: User) => void;
@@ -11,10 +11,14 @@ const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
+  
+  const passwordInputRef = useRef<HTMLInputElement>(null);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setInfo('');
 
     const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
 
@@ -36,11 +40,20 @@ const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
     onLogin(user);
   };
 
-  const loginAsDemo = (role: UserRole) => {
+  const selectDemoProfile = (role: UserRole) => {
     // Find the first active user with this role for demo purposes
     const demoUser = users.find(u => u.role === role && u.active);
+    
     if (demoUser) {
-        onLogin(demoUser);
+        setEmail(demoUser.email);
+        setPassword(''); // Clear password to force entry
+        setError('');
+        setInfo(`Perfil ${demoUser.name} selecionado. Digite a senha (padrão: 123).`);
+        
+        // Focus the password field
+        setTimeout(() => {
+            passwordInputRef.current?.focus();
+        }, 100);
     } else {
         setError(`Nenhum usuário ativo encontrado para o perfil ${role}.`);
     }
@@ -76,6 +89,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Senha</label>
             <div className="relative">
               <input 
+                ref={passwordInputRef}
                 type="password" 
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -87,9 +101,16 @@ const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
           </div>
 
           {error && (
-            <div className="flex items-center gap-2 text-red-600 dark:text-red-400 text-sm bg-red-50 dark:bg-red-900/20 py-2 px-3 rounded">
+            <div className="flex items-center gap-2 text-red-600 dark:text-red-400 text-sm bg-red-50 dark:bg-red-900/20 py-2 px-3 rounded animate-fade-in">
                 <AlertCircle size={16} />
                 <span>{error}</span>
+            </div>
+          )}
+
+          {info && !error && (
+            <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 text-sm bg-blue-50 dark:bg-blue-900/20 py-2 px-3 rounded animate-fade-in">
+                <Info size={16} />
+                <span>{info}</span>
             </div>
           )}
 
@@ -107,13 +128,13 @@ const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
               <div className="w-full border-t border-slate-200 dark:border-slate-700"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white dark:bg-slate-900 text-slate-500">Acesso Rápido (Demo)</span>
+              <span className="px-2 bg-white dark:bg-slate-900 text-slate-500">Selecionar Perfil (Demo)</span>
             </div>
           </div>
 
           <div className="mt-4 space-y-2">
             <button 
-              onClick={() => loginAsDemo(UserRole.TECHNICIAN)}
+              onClick={() => selectDemoProfile(UserRole.TECHNICIAN)}
               className="w-full flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition group"
             >
               <div className="flex items-center gap-3">
@@ -127,7 +148,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
             </button>
 
             <button 
-              onClick={() => loginAsDemo(UserRole.ANALYST)}
+              onClick={() => selectDemoProfile(UserRole.ANALYST)}
               className="w-full flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition group"
             >
               <div className="flex items-center gap-3">
@@ -141,7 +162,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
             </button>
 
             <button 
-              onClick={() => loginAsDemo(UserRole.SUPERVISOR)}
+              onClick={() => selectDemoProfile(UserRole.SUPERVISOR)}
               className="w-full flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition group"
             >
               <div className="flex items-center gap-3">
@@ -155,7 +176,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
             </button>
 
             <button 
-              onClick={() => loginAsDemo(UserRole.ADMIN)}
+              onClick={() => selectDemoProfile(UserRole.ADMIN)}
               className="w-full flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition group"
             >
               <div className="flex items-center gap-3">

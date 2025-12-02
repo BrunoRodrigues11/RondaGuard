@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { ChecklistTemplate } from '../types';
-import { Plus, Trash2, Save, X, Edit, ListChecks, ArrowLeft, Upload, FileSpreadsheet, HelpCircle } from 'lucide-react';
+import { Plus, Trash2, Save, X, Edit, ListChecks, Upload, FileSpreadsheet, Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
 import { read, utils } from 'xlsx';
 
 interface TemplateManagerProps {
@@ -10,9 +10,18 @@ interface TemplateManagerProps {
   onCancel: () => void;
 }
 
+interface FeedbackState {
+  type: 'success' | 'error';
+  message: string;
+}
+
 const TemplateManager: React.FC<TemplateManagerProps> = ({ templates, onSave, onDelete, onCancel }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  
+  // Import State
+  const [isImporting, setIsImporting] = useState(false);
+  const [feedback, setFeedback] = useState<FeedbackState | null>(null);
   
   // Form State
   const [name, setName] = useState('');
@@ -27,6 +36,7 @@ const TemplateManager: React.FC<TemplateManagerProps> = ({ templates, onSave, on
     setItems([...template.items]);
     setEditingId(template.id);
     setIsEditing(true);
+    setFeedback(null);
   };
 
   const handleNewClick = () => {
@@ -34,6 +44,7 @@ const TemplateManager: React.FC<TemplateManagerProps> = ({ templates, onSave, on
     setItems([]);
     setEditingId(null);
     setIsEditing(true);
+    setFeedback(null);
   };
 
   const handleAddItem = () => {
@@ -69,6 +80,12 @@ const TemplateManager: React.FC<TemplateManagerProps> = ({ templates, onSave, on
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setIsImporting(true);
+    setFeedback(null);
+
+    // Small delay to ensure UI updates and shows spinner
+    await new Promise(resolve => setTimeout(resolve, 500));
+
     try {
       const data = await file.arrayBuffer();
       const workbook = read(data);
@@ -83,7 +100,6 @@ const TemplateManager: React.FC<TemplateManagerProps> = ({ templates, onSave, on
       }
 
       // Group by Template Name
-      // Expected Format: Col A = Template Name, Col B = Item Description
       const groupedTemplates: Record<string, string[]> = {};
 
       rows.forEach((row) => {
@@ -101,7 +117,6 @@ const TemplateManager: React.FC<TemplateManagerProps> = ({ templates, onSave, on
         }
       });
 
-      // Convert to ChecklistTemplate objects and Save
       let count = 0;
       Object.entries(groupedTemplates).forEach(([tplName, tplItems]) => {
          const newTemplate: ChecklistTemplate = {
@@ -113,13 +128,32 @@ const TemplateManager: React.FC<TemplateManagerProps> = ({ templates, onSave, on
          count++;
       });
 
-      alert(`${count} modelo(s) importado(s) com sucesso!`);
+      if (count > 0) {
+        setFeedback({
+          type: 'success',
+          message: `${count} modelo(s) importado(s) com sucesso!`
+        });
+      } else {
+        setFeedback({
+          type: 'error',
+          message: 'Nenhum dado válido encontrado. Verifique se a planilha segue o padrão.'
+        });
+      }
 
     } catch (error) {
       console.error("Erro ao importar Excel:", error);
-      alert("Erro ao processar o arquivo. Verifique se é um arquivo Excel válido.");
+      setFeedback({
+        type: 'error',
+        message: 'Erro ao processar o arquivo. Certifique-se de que é um Excel válido.'
+      });
     } finally {
+      setIsImporting(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
+      
+      // Auto-clear success message after 5 seconds
+      setTimeout(() => {
+        setFeedback((prev) => (prev?.type === 'success' ? null : prev));
+      }, 5000);
     }
   };
 
@@ -140,15 +174,18 @@ const TemplateManager: React.FC<TemplateManagerProps> = ({ templates, onSave, on
                   accept=".xlsx, .xls" 
                 />
                 <button 
-                    onClick={() => fileInputRef.current?.click()}
-                    className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition flex items-center gap-2 shadow-sm"
+                    onClick={() => !isImporting && fileInputRef.current?.click()}
+                    disabled={isImporting}
+                    className={`bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition flex items-center gap-2 shadow-sm ${isImporting ? 'opacity-75 cursor-wait' : ''}`}
                     title="Formato: Coluna A = Nome do Modelo, Coluna B = Item"
                 >
-                    <Upload size={20} /> <span className="hidden sm:inline">Importar Excel</span>
+                    {isImporting ? <Loader2 size={20} className="animate-spin" /> : <Upload size={20} />}
+                    <span className="hidden sm:inline">{isImporting ? 'Importando...' : 'Importar Excel'}</span>
                 </button>
                 <button 
                     onClick={handleNewClick}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center gap-2 shadow-sm"
+                    disabled={isImporting}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center gap-2 shadow-sm disabled:opacity-50"
                 >
                     <Plus size={20} /> <span className="hidden sm:inline">Novo Modelo</span>
                 </button>
@@ -156,8 +193,26 @@ const TemplateManager: React.FC<TemplateManagerProps> = ({ templates, onSave, on
         )}
       </header>
       
+      {/* Notifications / Feedback Area */}
+      {feedback && !isEditing && (
+        <div className={`p-4 rounded-lg border flex items-center gap-3 animate-fade-in ${
+          feedback.type === 'success' 
+            ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400' 
+            : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
+        }`}>
+          {feedback.type === 'success' ? <CheckCircle size={20} /> : <AlertTriangle size={20} />}
+          <span className="font-medium">{feedback.message}</span>
+          <button 
+            onClick={() => setFeedback(null)} 
+            className="ml-auto p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       {/* Help Banner for Import */}
-      {!isEditing && (
+      {!isEditing && !feedback && (
         <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 p-4 rounded-lg flex items-start gap-3">
            <FileSpreadsheet className="text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" size={20} />
            <div>
