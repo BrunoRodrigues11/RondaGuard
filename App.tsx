@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, History as HistoryIcon, ShieldCheck, LogOut, ListChecks, Sun, Moon, Users, Settings, BarChart3, Map as MapIcon, Briefcase, Menu, X } from 'lucide-react';
+import { LayoutDashboard, History as HistoryIcon, ShieldCheck, LogOut, ListChecks, Sun, Moon, Users, Settings, BarChart3, Map as MapIcon, Briefcase, Menu, X, Activity } from 'lucide-react';
 import { Task, RoundLog, AppView, ChecklistTemplate, User, UserRole, ReportConfig } from './types';
 import Dashboard from './components/Dashboard';
 import TaskManager from './components/TaskManager';
@@ -10,6 +10,7 @@ import TemplateManager from './components/TemplateManager';
 import UserManager from './components/UserManager';
 import ReportConfigScreen from './components/ReportConfig';
 import AdvancedReports from './components/AdvancedReports';
+import OperationalAnalysis from './components/OperationalAnalysis';
 import MapScreen from './components/MapScreen';
 import Login from './components/Login';
 import OfflineIndicator from './components/OfflineIndicator';
@@ -357,6 +358,9 @@ const App: React.FC = () => {
       case AppView.REPORTS:
         if (!canViewReports) return <div className="p-8 text-center text-red-500">Acesso Negado: Apenas supervisores/admin.</div>;
         return <AdvancedReports logs={logs} reportConfig={reportConfig} />;
+      case AppView.ANALYSIS:
+        if (!canViewReports) return <div className="p-8 text-center text-red-500">Acesso Negado: Apenas supervisores/admin.</div>;
+        return <OperationalAnalysis logs={logs} />;
       case AppView.TEMPLATES:
         if (!canManageTemplates) return <div className="p-8 text-center text-red-500">Acesso Negado</div>;
         return (
@@ -464,6 +468,13 @@ const App: React.FC = () => {
                 <div className="mb-4">
                     <p className="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Gestão</p>
                     <div className="space-y-1">
+                        {canViewReports && (
+                            <button onClick={() => handleNavClick(AppView.ANALYSIS)} className={navItemClass(AppView.ANALYSIS)}>
+                                <Activity size={20} />
+                                <span className="ml-3 font-medium">Análise</span>
+                            </button>
+                        )}
+                        
                         {canViewHistory && (
                             <button onClick={() => handleNavClick(AppView.HISTORY)} className={navItemClass(AppView.HISTORY)}>
                                 <HistoryIcon size={20} />

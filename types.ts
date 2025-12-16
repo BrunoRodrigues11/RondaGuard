@@ -59,6 +59,7 @@ export const AppView = {
   SETTINGS: 'SETTINGS',
   REPORTS: 'REPORTS',
   MAP: 'MAP',
+  ANALYSIS: 'ANALYSIS', // Nova tela de KPIs
 } as const;
 
 export type AppView = typeof AppView[keyof typeof AppView];
