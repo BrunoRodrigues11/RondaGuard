@@ -15,7 +15,7 @@ export interface Task {
   id: string;
   sector: string;
   title: string;
-  ticketId?: string; // Novo campo: Número do Chamado
+  ticketId?: string;
   description: string;
   responsible: string; 
   checklist: ChecklistItem[];
@@ -26,7 +26,7 @@ export interface RoundLog {
   id: string;
   taskId: string;
   taskTitle: string;
-  ticketId?: string; // Novo campo: Número do Chamado
+  ticketId?: string;
   sector: string;
   responsible: string; 
   startTime: number;
@@ -39,6 +39,7 @@ export interface RoundLog {
   aiAnalysis?: string;
   signature?: string; // Base64 image
   validationToken?: string; // Unique hash
+  synced?: boolean; // Offline sync status
 }
 
 export interface ReportConfig {
@@ -47,30 +48,37 @@ export interface ReportConfig {
   headerColor: string; // Hex Code
 }
 
-export enum AppView {
-  DASHBOARD = 'DASHBOARD',
-  CREATE_TASK = 'CREATE_TASK',
-  EXECUTE_ROUND = 'EXECUTE_ROUND',
-  HISTORY = 'HISTORY',
-  TEMPLATES = 'TEMPLATES',
-  USER_MANAGEMENT = 'USER_MANAGEMENT',
-  SETTINGS = 'SETTINGS',
-}
+export const AppView = {
+  DASHBOARD: 'DASHBOARD',
+  TASKS: 'TASKS', // Nova view unificada
+  CREATE_TASK: 'CREATE_TASK',
+  EXECUTE_ROUND: 'EXECUTE_ROUND',
+  HISTORY: 'HISTORY',
+  TEMPLATES: 'TEMPLATES',
+  USER_MANAGEMENT: 'USER_MANAGEMENT',
+  SETTINGS: 'SETTINGS',
+  REPORTS: 'REPORTS',
+  MAP: 'MAP',
+} as const;
+
+export type AppView = typeof AppView[keyof typeof AppView];
 
 // --- Auth Types ---
 
-export enum UserRole {
-  TECHNICIAN = 'TECHNICIAN', // Apenas executa
-  ANALYST = 'ANALYST',       // Cria tarefas e modelos
-  SUPERVISOR = 'SUPERVISOR', // Vê relatórios e gerencia tarefas
-  ADMIN = 'ADMIN'            // Acesso total + Gestão de Usuários
-}
+export const UserRole = {
+  TECHNICIAN: 'TECHNICIAN', // Apenas executa
+  ANALYST: 'ANALYST',       // Cria tarefas e modelos
+  SUPERVISOR: 'SUPERVISOR', // Vê relatórios e gerencia tarefas
+  ADMIN: 'ADMIN'            // Acesso total + Gestão de Usuários
+} as const;
+
+export type UserRole = typeof UserRole[keyof typeof UserRole];
 
 export interface User {
   id: string;
   name: string;
   email: string;
-  password?: string; // Para simulação de login
+  password?: string;
   role: UserRole;
   active: boolean;
 }

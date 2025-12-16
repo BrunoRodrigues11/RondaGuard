@@ -1,62 +1,46 @@
-import React, { useState, useRef } from 'react';
+
+import React, { useState } from 'react';
 import { User, UserRole } from '../types';
-import { ShieldCheck, User as UserIcon, Lock, ChevronRight, AlertCircle, Info } from 'lucide-react';
+import { ShieldCheck, User as UserIcon, Lock, AlertCircle, Loader2 } from 'lucide-react';
+import { api } from '../services/api';
 
 interface LoginProps {
   onLogin: (user: User) => void;
-  users: User[]; // Login now receives the user list to validate credentials
+  users?: User[]; // Optional now, since we verify via API
 }
 
-const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
+const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [info, setInfo] = useState('');
-  
-  const passwordInputRef = useRef<HTMLInputElement>(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setInfo('');
+    setLoading(true);
 
-    const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-
-    if (!user) {
-        setError('Usuário não encontrado.');
-        return;
+    try {
+      const user = await api.login(email, password);
+      onLogin(user);
+    } catch (err: any) {
+      setError(err.message || 'Erro ao realizar login');
+    } finally {
+      setLoading(false);
     }
-
-    if (user.password !== password) {
-        setError('Senha incorreta.');
-        return;
-    }
-
-    if (!user.active) {
-        setError('Acesso bloqueado. Contate o administrador.');
-        return;
-    }
-
-    onLogin(user);
   };
 
-  const selectDemoProfile = (role: UserRole) => {
-    // Find the first active user with this role for demo purposes
-    const demoUser = users.find(u => u.role === role && u.active);
-    
-    if (demoUser) {
-        setEmail(demoUser.email);
-        setPassword(''); // Clear password to force entry
-        setError('');
-        setInfo(`Perfil ${demoUser.name} selecionado. Digite a senha (padrão: 123).`);
-        
-        // Focus the password field
-        setTimeout(() => {
-            passwordInputRef.current?.focus();
-        }, 100);
-    } else {
-        setError(`Nenhum usuário ativo encontrado para o perfil ${role}.`);
-    }
+  // Demo Login Helper (for showcase purposes only - simulates typing)
+  const setDemoCredentials = (role: string) => {
+      let u = '', p = '123';
+      switch(role) {
+          case 'TECHNICIAN': u = 'tec@rondaguard.com'; break;
+          case 'ANALYST': u = 'ana@rondaguard.com'; break;
+          case 'SUPERVISOR': u = 'sup@rondaguard.com'; break;
+          case 'ADMIN': u = 'admin@rondaguard.com'; break;
+      }
+      setEmail(u);
+      setPassword(p);
   };
 
   return (
@@ -80,6 +64,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
                 placeholder="seu@email.com"
+                required
               />
               <UserIcon className="absolute left-3 top-2.5 text-slate-400" size={18} />
             </div>
@@ -89,12 +74,12 @@ const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Senha</label>
             <div className="relative">
               <input 
-                ref={passwordInputRef}
                 type="password" 
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
                 placeholder="••••••"
+                required
               />
               <Lock className="absolute left-3 top-2.5 text-slate-400" size={18} />
             </div>
@@ -107,88 +92,21 @@ const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
             </div>
           )}
 
-          {info && !error && (
-            <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 text-sm bg-blue-50 dark:bg-blue-900/20 py-2 px-3 rounded animate-fade-in">
-                <Info size={16} />
-                <span>{info}</span>
-            </div>
-          )}
-
           <button 
             type="submit" 
-            className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition shadow-lg shadow-blue-200 dark:shadow-none"
+            disabled={loading}
+            className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition shadow-lg shadow-blue-200 dark:shadow-none flex items-center justify-center gap-2"
           >
-            Entrar
+            {loading ? <Loader2 className="animate-spin" size={20} /> : 'Entrar'}
           </button>
         </form>
 
-        <div className="mt-8">
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-200 dark:border-slate-700"></div>
+        <div className="mt-6 text-center">
+            <p className="text-xs text-slate-400 mb-2">Para testar (se o banco estiver populado):</p>
+            <div className="flex gap-2 justify-center flex-wrap">
+                <button type="button" onClick={() => setDemoCredentials('ADMIN')} className="text-xs px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded">Admin</button>
+                <button type="button" onClick={() => setDemoCredentials('TECHNICIAN')} className="text-xs px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded">Técnico</button>
             </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white dark:bg-slate-900 text-slate-500">Selecionar Perfil (Demo)</span>
-            </div>
-          </div>
-
-          <div className="mt-4 space-y-2">
-            <button 
-              onClick={() => selectDemoProfile(UserRole.TECHNICIAN)}
-              className="w-full flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition group"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 dark:text-green-400">T</div>
-                <div className="text-left">
-                  <p className="text-sm font-medium text-slate-800 dark:text-white">Técnico</p>
-                  <p className="text-xs text-slate-500">Apenas executa rondas</p>
-                </div>
-              </div>
-              <ChevronRight size={16} className="text-slate-400 group-hover:text-green-500" />
-            </button>
-
-            <button 
-              onClick={() => selectDemoProfile(UserRole.ANALYST)}
-              className="w-full flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition group"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center text-purple-600 dark:text-purple-400">A</div>
-                <div className="text-left">
-                  <p className="text-sm font-medium text-slate-800 dark:text-white">Analista</p>
-                  <p className="text-xs text-slate-500">Cria tarefas e modelos</p>
-                </div>
-              </div>
-              <ChevronRight size={16} className="text-slate-400 group-hover:text-purple-500" />
-            </button>
-
-            <button 
-              onClick={() => selectDemoProfile(UserRole.SUPERVISOR)}
-              className="w-full flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition group"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-orange-600 dark:text-orange-400">S</div>
-                <div className="text-left">
-                  <p className="text-sm font-medium text-slate-800 dark:text-white">Supervisor</p>
-                  <p className="text-xs text-slate-500">Relatórios e gestão total</p>
-                </div>
-              </div>
-              <ChevronRight size={16} className="text-slate-400 group-hover:text-orange-500" />
-            </button>
-
-            <button 
-              onClick={() => selectDemoProfile(UserRole.ADMIN)}
-              className="w-full flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition group"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center text-red-600 dark:text-red-400">ADM</div>
-                <div className="text-left">
-                  <p className="text-sm font-medium text-slate-800 dark:text-white">Administrador</p>
-                  <p className="text-xs text-slate-500">Gestão de Usuários e Sistema</p>
-                </div>
-              </div>
-              <ChevronRight size={16} className="text-slate-400 group-hover:text-red-500" />
-            </button>
-          </div>
         </div>
       </div>
     </div>
@@ -196,3 +114,4 @@ const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
 };
 
 export default Login;
+    
